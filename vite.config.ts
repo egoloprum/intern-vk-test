@@ -10,5 +10,8 @@ export default defineConfig({
 		alias: {
 			'@': path.resolve(__dirname, './src')
 		}
+	},
+	server: {
+		allowedHosts: ['*', 'uncasually-bespectacled-dodie.ngrok-free.dev']
 	}
 })
