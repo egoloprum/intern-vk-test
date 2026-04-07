@@ -4,12 +4,16 @@ import {
   type UseInfiniteQueryResult,
   type InfiniteData,
 } from '@tanstack/react-query'
-import type { Cat } from '../../entities/Cat'
+import type { Cat, Favorite } from '../types'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 interface CatContextType {
   query: UseInfiniteQueryResult<InfiniteData<Cat[]>, Error>
   loadMore: () => void
-  refetchCats: () => void
+  favorites: Favorite[]
+  favoritesLoading: boolean
+  toggleFavorite: (cat: Cat) => void
+  isFavorite: (catId: string) => boolean
 }
 
 const CatContext = createContext<CatContextType | undefined>(undefined)
@@ -17,6 +21,8 @@ const CatContext = createContext<CatContextType | undefined>(undefined)
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.thecatapi.com/v1'
 const API_KEY = import.meta.env.VITE_API_KEY
 const PAGE_SIZE = 15
+
+const FAVORITES_STORAGE_KEY = 'cat_favorites'
 
 const fetchCats = async ({ pageParam = 0 }: { pageParam?: number }): Promise<Cat[]> => {
   const headers: HeadersInit = {}
@@ -30,6 +36,8 @@ const fetchCats = async ({ pageParam = 0 }: { pageParam?: number }): Promise<Cat
 }
 
 export const CatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [favorites, setFavorites] = useLocalStorage<Favorite[]>(FAVORITES_STORAGE_KEY, [])
+
   const query = useInfiniteQuery<Cat[], Error, InfiniteData<Cat[]>, [string], number>({
     queryKey: ['cats'],
     queryFn: fetchCats,
@@ -41,20 +49,48 @@ export const CatProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     staleTime: 5 * 60 * 1000,
   })
 
+  const toggleFavorite = useCallback(
+    (cat: Cat) => {
+      setFavorites(prev => {
+        const existing = prev.find(fav => fav.image_id === cat.id)
+        if (existing) {
+          return prev.filter(fav => fav.image_id !== cat.id)
+        } else {
+          const newFavorite: Favorite = {
+            id: Date.now(),
+            image_id: cat.id,
+            sub_id: 'local',
+            created_at: new Date().toISOString(),
+            image: {
+              id: cat.id,
+              url: cat.url,
+            },
+          }
+          return [...prev, newFavorite]
+        }
+      })
+    },
+    [setFavorites]
+  )
+
+  const isFavorite = useCallback(
+    (catId: string) => favorites.some(fav => fav.image_id === catId),
+    [favorites]
+  )
+
   const loadMore = useCallback(() => {
     if (query.hasNextPage && !query.isFetchingNextPage) {
       query.fetchNextPage()
     }
   }, [query])
 
-  const refetchCats = useCallback(() => {
-    query.refetch()
-  }, [query])
-
   const value: CatContextType = {
     query,
     loadMore,
-    refetchCats,
+    favorites,
+    favoritesLoading: false,
+    toggleFavorite,
+    isFavorite,
   }
 
   return <CatContext.Provider value={value}>{children}</CatContext.Provider>

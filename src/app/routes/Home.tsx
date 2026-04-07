@@ -1,7 +1,7 @@
 import { useCats } from '../../shared/providers'
 import { useInView } from 'react-intersection-observer'
 import { useEffect } from 'react'
-import type { Cat } from '../../entities/Cat'
+import type { Cat } from '../../shared/types'
 
 export const Home = () => {
   const { query, loadMore } = useCats()
