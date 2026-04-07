@@ -3,4 +3,5 @@ export interface Cat {
   url: string
   width: number
   height: number
+  pages: number
 }
